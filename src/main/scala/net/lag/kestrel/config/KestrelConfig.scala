@@ -153,60 +153,38 @@ object Protocol {
   case object Binary extends Protocol
 }
 
-trait KestrelConfig extends ServerConfig[Kestrel] {
-  /**
-   * Settings for a queue that isn't explicitly listed in `queues`.
-   */
-  val default: QueueBuilder = new QueueBuilder
-
-  /**
-   * Specific per-queue config.
-   */
-  var queues: List[QueueBuilder] = Nil
-
-  /**
-   * Address to listen for client connections. By default, accept from any interface.
-   */
-  var listenAddress: String = "0.0.0.0"
-
-  /**
-   * Port for accepting memcache protocol connections. 22133 is the standard port.
-   */
-  var memcacheListenPort: Option[Int] = Some(22133)
-
-  /**
-   * Port for accepting text protocol connections.
-   */
-  var textListenPort: Option[Int] = Some(2222)
-
-  /**
-   * Where queue journals should be stored. Each queue will have its own files in this folder.
-   */
-  var queuePath: String = "/tmp"
-
-  /**
-   * For future support. Only ascii is supported right now.
-   */
-  var protocol: Protocol = Protocol.Ascii
-
-  /**
-   * If you would like a timer to periodically sweep through queues and clean up expired items
-   * (when they are at the head of a queue), set the timer's frequency here. This is only useful
-   * for queues that are rarely (or never) polled, but may contain short-lived items.
-   */
-  var expirationTimerFrequency: Option[Duration] = None
-
-  /**
-   * An optional timeout for idle client connections. A client that hasn't sent a request in this
-   * period of time will be disconnected.
-   */
-  var clientTimeout: Option[Duration] = None
-
-  /**
-   * Maximum # of transactions (incomplete GETs) each client can have open at one time.
-   */
-  var maxOpenTransactions: Int = 1
-
+/**
+ * @param default Settings for a queue that isn't explicitly listed in `queues`.
+ * @param queues Specific per-queue config.
+ * @param listenAddress Address to listen for client connections. By default, accept from any
+ *   interface.
+ * @param memcacheListenPort Port for accepting memcache protocol connections. 22133 is the
+ *   standard port.
+ * @param textListenPort Port for accepting text protocol connections.
+ * @param queuePath Where queue journals should be stored. Each queue will have its own files in
+ *   this folder.
+ * @param protocol For future support. Only ascii is supported right now.
+ * @param expirationTimerFrequency If you would like a timer to periodically sweep through queues
+ *   and clean up expired items (when they are at the head of a queue), set the timer's frequency
+ *   here. This is only useful for queues that are rarely (or never) polled, but may contain
+ *   short-lived items.
+ * @param clientTimeout An optional timeout for idle client connections. A client that hasn't sent
+ *   a request in this period of time will be disconnected.
+ * @param maxOpenTransactions Maximum # of transactions (incomplete GETs) each client can have
+ *   open at one time.
+ */
+case class KestrelConfig(
+  default: QueueBuilder = new QueueBuilder,
+  queues: List[QueueBuilder] = Nil,
+  listenAddress: String = "0.0.0.0",
+  memcacheListenPort: Option[Int] = Some(22133),
+  textListenPort: Option[Int] = Some(2222),
+  queuePath: String = "/tmp",
+  protocol: Protocol = Protocol.Ascii,
+  expirationTimerFrequency: Option[Duration] = None,
+  clientTimeout: Option[Duration] = None,
+  maxOpenTransactions: Int = 1
+) extends ServerConfig[Kestrel] {
   def apply(runtime: RuntimeEnvironment) = {
     new Kestrel(default(), queues, listenAddress, memcacheListenPort, textListenPort,
                 queuePath, protocol, expirationTimerFrequency, clientTimeout,

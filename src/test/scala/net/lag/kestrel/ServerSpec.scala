@@ -77,12 +77,13 @@ class ServerSpec extends Specification with TempFolder with TestLogging {
         val weatherUpdates = kestrel.queueCollection("weather_updates").get
         starship.config.maxItems mustEqual Int.MaxValue
         weatherUpdates.config.maxItems mustEqual 1500000
-        new KestrelConfig {
-          default.maxItems = 9999
-          queues = new QueueBuilder {
+        new KestrelConfig(
+          queues = new QueueBuilder() {
             name = "starship"
             maxItems = 50
-          }
+          } :: Nil
+        ) {
+          default.maxItems = 9999
         }.reload(kestrel)
         starship.config.maxItems mustEqual 50
         weatherUpdates.config.maxItems mustEqual 9999
