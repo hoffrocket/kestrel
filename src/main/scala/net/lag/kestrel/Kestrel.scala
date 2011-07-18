@@ -22,7 +22,6 @@ import java.util.concurrent.{Executors, ExecutorService, TimeUnit}
 import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.{immutable, mutable}
 import com.twitter.conversions.time._
-import com.twitter.finagle.builder.Server
 import com.twitter.logging.Logger
 import com.twitter.ostrich.admin.{RuntimeEnvironment, Service, ServiceTracker}
 import com.twitter.ostrich.stats.Stats
@@ -34,13 +33,13 @@ import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory
 import org.jboss.netty.util.{HashedWheelTimer, Timeout, Timer, TimerTask}
 import config._
 
-import com.twitter.finagle.builder.{ServerBuilder, Server => FinagleServer}
 import com.twitter.finagle.stats.OstrichStatsReceiver
 import com.twitter.finagle.util.{Timer => FinagleTimer}
 import com.twitter.util.Future
 import com.twitter.naggati.Codec
 import com.twitter.naggati.codec.{MemcacheResponse, MemcacheRequest, MemcacheCodec}
-import com.twitter.finagle.{ClientConnection, ServerCodec, Service => FinagleService}
+import com.twitter.finagle.{ClientConnection, Codec => FinagleCodec, Service => FinagleService}
+import com.twitter.finagle.builder.{ServerConfig2, Server => FinagleServer}
 
 class Kestrel(defaultQueueConfig: QueueConfig, builders: List[QueueBuilder],
               listenAddress: String, memcacheListenPort: Option[Int], textListenPort: Option[Int],
@@ -57,25 +56,24 @@ class Kestrel(defaultQueueConfig: QueueConfig, builders: List[QueueBuilder],
   var textAcceptor: Option[Channel] = None
 
   private def finagledCodec[Req, Resp](codec: => Codec[Resp]) = {
-    new ServerCodec[Req, Resp] {
+    new FinagleCodec[Req, Resp] {
       val pipelineFactory = codec.pipelineFactory
     }
   }
 
   def startFinagleServer[Req, Resp](
-    name: String,
+    serverName: String,
     port: Int,
-    serverCodec: ServerCodec[Req, Resp]
+    serverCodec: FinagleCodec[Req, Resp]
   )(factory: ClientConnection => FinagleService[Req, Resp]): FinagleServer = {
-    val address = new InetSocketAddress(listenAddress, port)
-    val builder = ServerBuilder()
-      .codec(serverCodec)
-      .name(name)
-      .reportTo(new OstrichStatsReceiver)
-      .bindTo(address)
-    clientTimeout.foreach { timeout => builder.readTimeout(timeout) }
-    // calling build() is equivalent to calling start() in fingale.
-    builder.build(factory)
+    new ServerConfig2[Req, Resp] {
+      codec = serverCodec
+      name = serverName
+      bindTo = new InetSocketAddress(listenAddress, port)
+      statsReceiver = new OstrichStatsReceiver
+      readTimeout = clientTimeout
+      serviceFactory = factory
+    }.apply()
   }
 
   private def bytesRead(n: Int) {
