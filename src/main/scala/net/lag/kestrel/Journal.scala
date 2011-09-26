@@ -284,6 +284,8 @@ class Journal(queuePath: String, syncJournal: => Boolean) {
       } catch {
         case ex: IOException =>
           throw new BrokenItemException(lastPosition, ex)
+        case naze: NegativeArraySizeException =>
+          throw new BrokenItemException(lastPosition, naze)
       }
     }
   }
